@@ -14,6 +14,8 @@ final class RequestCell: UICollectionViewCell {
     @IBOutlet weak var codeLabel: NSLabel!
     @IBOutlet weak var urlLabel: NSLabel!
     @IBOutlet weak var durationLabel: NSLabel!
+    @IBOutlet weak var queryName: UILabel!
+    @IBOutlet weak var operationType: UILabel!
     
     func populate(request: NetShearsRequestModel?){
         guard request != nil else {
@@ -23,6 +25,9 @@ final class RequestCell: UICollectionViewCell {
         methodLabel.text = request?.method.uppercased()
         codeLabel.isHidden = request?.code == 0 ? true : false
         codeLabel.text = request?.code != nil ? String(request!.code) : "-"
+        queryName.text = request?.headers["X-APOLLO-OPERATION-NAME"]
+        operationType.text = request?.headers["X-APOLLO-OPERATION-TYPE"]
+        
         if let code = request?.code{
             var color: UIColor = Colors.HTTPCode.Generic
             switch code {
