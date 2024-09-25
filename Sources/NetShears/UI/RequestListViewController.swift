@@ -34,6 +34,12 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
         }
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        searchController?.searchBar.text = "pgatour"
+    }
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
