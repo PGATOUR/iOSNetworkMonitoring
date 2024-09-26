@@ -19,6 +19,9 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     private var searchController: UISearchController?
     private let requestCellIdentifier = String(describing: RequestCell.self)
     
+    var defaultFilterText: String = ""
+    var doneAction: (() -> Void)? = nil
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -37,7 +40,7 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        searchController?.searchBar.text = "pgatour"
+        searchController?.searchBar.text = defaultFilterText
     }
     
     override func didReceiveMemoryWarning() {
@@ -119,7 +122,11 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     }
     
     @objc private func done(){
-        self.dismiss(animated: true, completion: nil)
+        if let doneAction = doneAction {
+            doneAction()
+        } else {
+            self.dismiss(animated: true, completion: nil)
+        }
     }
     
     private func openRequestDetailVC(request: NetShearsRequestModel){
