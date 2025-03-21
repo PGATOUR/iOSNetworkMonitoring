@@ -21,16 +21,7 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     
     private var filterOutConnectivityPing = true
     private var cloudinaryImagesOnly = false
-    
-    private lazy var FilterButton: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
         
-        label.text = "Filters"
-        
-        return label
-    }()
-    
     var defaultFilterText: String = ""
     var doneAction: (() -> Void)? = nil
     
