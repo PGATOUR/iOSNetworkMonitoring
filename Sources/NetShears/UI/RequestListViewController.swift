@@ -7,7 +7,7 @@
 //
 
 import UIKit
-
+import SwiftUI
 
 class RequestsViewController: UIViewController, ShowLoaderProtocol {
     
@@ -19,6 +19,9 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     private var searchController: UISearchController?
     private let requestCellIdentifier = String(describing: RequestCell.self)
     
+    private var filterOutConnectivityPing = true
+    private var cloudinaryImagesOnly = false
+        
     var defaultFilterText: String = ""
     var doneAction: (() -> Void)? = nil
     
@@ -61,7 +64,7 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
         } else {
             // Fallback
         }
-        searchController?.searchBar.placeholder = "Search URL"
+        searchController?.searchBar.placeholder = "Search"
         if #available(iOS 11.0, *) {
             navigationItem.searchController = searchController
         } else {
@@ -71,11 +74,30 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     }
     
     private func filterRequests(text: String?) -> [NetShearsRequestModel]{
-        guard let searchText = text, !searchText.isEmpty else { return Storage.shared.filteredRequests }
-        
         return Storage.shared.filteredRequests.filter {
-             $0.url.range(of: searchText, options: .caseInsensitive) != nil
+            checkForSearchFiltering(text: text, requestModel: $0) &&
+            checkForFiltingConnectivity(url: $0.url) &&
+            checkForFilteringCloudinaryImages(url: $0.url)
         }
+    }
+    
+    private func checkForSearchFiltering(text: String?, requestModel: NetShearsRequestModel) -> Bool {
+        guard let searchText = text, !searchText.isEmpty else { return true }
+        
+        return requestModel.url.range(of: searchText, options: .caseInsensitive) != nil ||
+        requestModel.headers.values.contains(where: { $0.range(of: searchText, options: .caseInsensitive) != nil })
+    }
+    
+    private func checkForFiltingConnectivity(url: String) -> Bool {
+        guard filterOutConnectivityPing else { return true }
+        
+        return !url.contains("pgatour.com/hotspot-detect")
+    }
+    
+    private func checkForFilteringCloudinaryImages(url: String) -> Bool {
+        guard cloudinaryImagesOnly else { return true }
+        
+        return url.contains("cloudinary")
     }
     
     // MARK: - Actions
@@ -118,7 +140,10 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     
     private func addNavigationItems() {
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: "More", style: .plain, target: self, action: #selector(openActionSheet(_:)))
-        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(done))
+        navigationItem.rightBarButtonItems = [
+            UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(done)),
+            UIBarButtonItem(title: "Filters", style: .plain, target: self, action: #selector(openFilterActionSheet(_:)))
+        ]
     }
     
     @objc private func done(){
@@ -129,7 +154,23 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
         }
     }
     
+    @objc private func openFilterActionSheet(_ sender: UIBarButtonItem) {
+        let filtersVC = UIHostingController(
+            rootView: FiltersView(
+                filterOutConnectivityPing: filterOutConnectivityPing,
+                cloudinaryImagesOnly: cloudinaryImagesOnly
+            ) { filterOutConnectivityPing, cloudinaryImagesOnly in
+                self.filterOutConnectivityPing = filterOutConnectivityPing
+                self.cloudinaryImagesOnly = cloudinaryImagesOnly
+            }
+        )
+        
+        present(filtersVC, animated: true, completion: nil)
+    }
+    
     private func openRequestDetailVC(request: NetShearsRequestModel){
+        defaultFilterText = searchController?.searchBar.text ?? ""
+        
         let storyboard = UIStoryboard.NetShearsStoryBoard
         if let requestDetailVC = storyboard.instantiateViewController(withIdentifier: String(describing: RequestDetailViewController.self)) as? RequestDetailViewController{
             requestDetailVC.request = request
