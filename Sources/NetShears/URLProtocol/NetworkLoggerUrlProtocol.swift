@@ -32,7 +32,8 @@ class NetworkLoggerUrlProtocol: URLProtocol {
     
     override class func canInit(with request: URLRequest) -> Bool {
         
-        if NetworkLoggerUrlProtocol.property(forKey: Constants.RequestHandledKey, in: request) != nil {
+        if NetworkLoggerUrlProtocol.property(forKey: Constants.RequestHandledKey, in: request) != nil ||
+            request.value(forHTTPHeaderField: "Connection") == "Upgrade" {
             return false
         }
         return true

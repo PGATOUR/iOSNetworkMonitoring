@@ -28,7 +28,8 @@ class NetworkInterceptorUrlProtocol: URLProtocol {
     override class func canInit(with request: URLRequest) -> Bool {
         guard NetworkInterceptor.shared.shouldRequestModify(urlRequest: request) else { return false }
         
-        if NetworkInterceptorUrlProtocol.property(forKey: Constants.RequestHandledKey, in: request) != nil {
+        if NetworkInterceptorUrlProtocol.property(forKey: Constants.RequestHandledKey, in: request) != nil ||
+            request.value(forHTTPHeaderField: "Connection") == "Upgrade" {
             return actionModifier(forRequest: request) != nil
         }
         return true
