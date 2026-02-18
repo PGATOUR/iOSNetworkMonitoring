@@ -18,7 +18,10 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     
     private var searchController: UISearchController?
     private let requestCellIdentifier = String(describing: RequestCell.self)
-    
+
+    private var showOnlyGQLRequests: Bool = false
+    private var showOnlyRESTRequests: Bool = false
+    private var showGQLandREST = false
     private var filterOutConnectivityPing = true
     private var cloudinaryImagesOnly = false
         
@@ -77,7 +80,8 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
         return Storage.shared.filteredRequests.filter {
             checkForSearchFiltering(text: text, requestModel: $0) &&
             checkForFiltingConnectivity(url: $0.url) &&
-            checkForFilteringCloudinaryImages(url: $0.url)
+            checkForFilteringCloudinaryImages(url: $0.url) &&
+            checkForFiltering(url: $0.url)
         }
     }
     
@@ -87,7 +91,23 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
         return requestModel.url.range(of: searchText, options: .caseInsensitive) != nil ||
         requestModel.headers.values.contains(where: { $0.range(of: searchText, options: .caseInsensitive) != nil })
     }
-    
+
+    private func checkForFiltering(url: String) -> Bool {
+        if showOnlyGQLRequests {
+            return url.localizedCaseInsensitiveContains("orchestrator")
+        }
+        if showOnlyRESTRequests {
+            return url.localizedCaseInsensitiveContains("data-api-uat")
+        }
+
+        if showGQLandREST {
+            return url.localizedCaseInsensitiveContains("orchestrator-uat") ||
+            url.localizedCaseInsensitiveContains( "data-api-uat")
+        }
+
+        return true
+    }
+
     private func checkForFiltingConnectivity(url: String) -> Bool {
         guard filterOutConnectivityPing else { return true }
         
@@ -157,9 +177,15 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     @objc private func openFilterActionSheet(_ sender: UIBarButtonItem) {
         let filtersVC = UIHostingController(
             rootView: FiltersView(
+                showOnlyGQLQueries: showOnlyGQLRequests,
+                showOnlyRestRequest: showOnlyRESTRequests,
+                showGQLandREST: showGQLandREST,
                 filterOutConnectivityPing: filterOutConnectivityPing,
                 cloudinaryImagesOnly: cloudinaryImagesOnly
-            ) { filterOutConnectivityPing, cloudinaryImagesOnly in
+            ) { gql, rest, gqlAndRest, filterOutConnectivityPing, cloudinaryImagesOnly in
+                self.showOnlyGQLRequests = gql
+                self.showOnlyRESTRequests = rest
+                self.showGQLandREST = gqlAndRest
                 self.filterOutConnectivityPing = filterOutConnectivityPing
                 self.cloudinaryImagesOnly = cloudinaryImagesOnly
             }
