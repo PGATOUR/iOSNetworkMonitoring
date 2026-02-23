@@ -220,4 +220,29 @@ public final class NetShearsRequestModel: Codable {
         
         return PMItem(name: name, item: nil, request: request, response: [response])
     }
+
+    /// A short heading that identifies this request: GQL operation name, REST path, or fallback.
+    /// Matches the identifiers shown in the original request list (query name, operation type, URL path).
+    var displayHeading: String {
+        if let name = headers["X-APOLLO-OPERATION-NAME"], !name.isEmpty {
+            let type = headers["X-APOLLO-OPERATION-TYPE"] ?? ""
+            if !type.isEmpty {
+                return "\(type.capitalized): \(name)"
+            }
+            return name
+        }
+        if let urlObj = URL(string: url), !urlObj.path.isEmpty, urlObj.path != "/" {
+            return urlObj.path
+        }
+        return host ?? url
+    }
+
+    /// Key for grouping: GQL by operation name + body (variables/query); others by method + URL.
+    var groupingKey: String {
+        if let opName = headers["X-APOLLO-OPERATION-NAME"], !opName.isEmpty {
+            let bodyStr = httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            return "gql|\(method)|\(url)|\(opName)|\(bodyStr)"
+        }
+        return "rest|\(method)|\(url)"
+    }
 }

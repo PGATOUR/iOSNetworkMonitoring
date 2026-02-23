@@ -30,7 +30,7 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+        syncFilterStateFromShared()
         addNavigationItems()
         addSearchController()
         registerNibs()
@@ -42,11 +42,35 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
             }
         }
     }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        syncFilterStateFromShared()
+        filteredRequests = filterRequests(text: searchController?.searchBar.text) ?? []
+        collectionView.reloadData()
+    }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
         searchController?.searchBar.text = defaultFilterText
+    }
+
+    private func syncFilterStateFromShared() {
+        let state = NetworkMonitorFilterState.shared
+        showOnlyGQLRequests = state.showOnlyGQLRequests
+        showOnlyRESTRequests = state.showOnlyRESTRequests
+        showGQLandREST = state.showGQLandREST
+        filterOutConnectivityPing = state.filterOutConnectivityPing
+        cloudinaryImagesOnly = state.cloudinaryImagesOnly
+    }
+
+    private func syncFilterStateToShared() {
+        let state = NetworkMonitorFilterState.shared
+        state.showOnlyGQLRequests = showOnlyGQLRequests
+        state.showOnlyRESTRequests = showOnlyRESTRequests
+        state.showGQLandREST = showGQLandREST
+        state.filterOutConnectivityPing = filterOutConnectivityPing
+        state.cloudinaryImagesOnly = cloudinaryImagesOnly
     }
     
     override func didReceiveMemoryWarning() {
@@ -146,6 +170,19 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
         present(ac, animated: true, completion: nil)
     }
 
+    @objc private func openRequestSummary(_ sender: UIBarButtonItem?) {
+        let summaryVC = RequestSummaryViewController(
+            requests: filteredRequests,
+            showOnlyGQLRequests: showOnlyGQLRequests,
+            showOnlyRESTRequests: showOnlyRESTRequests,
+            showGQLandREST: showGQLandREST,
+            filterOutConnectivityPing: filterOutConnectivityPing,
+            cloudinaryImagesOnly: cloudinaryImagesOnly
+        )
+        summaryVC.delegate = delegate
+        show(summaryVC, sender: self)
+    }
+
     private func clearRequests() {
         Storage.shared.clearRequests()
         filteredRequests = Storage.shared.filteredRequests
@@ -162,7 +199,8 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: "More", style: .plain, target: self, action: #selector(openActionSheet(_:)))
         navigationItem.rightBarButtonItems = [
             UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(done)),
-            UIBarButtonItem(title: "Filters", style: .plain, target: self, action: #selector(openFilterActionSheet(_:)))
+            UIBarButtonItem(title: "Filters", style: .plain, target: self, action: #selector(openFilterActionSheet(_:))),
+            UIBarButtonItem(title: "By count", style: .plain, target: self, action: #selector(openRequestSummary(_:)))
         ]
     }
     
@@ -182,12 +220,15 @@ class RequestsViewController: UIViewController, ShowLoaderProtocol {
                 showGQLandREST: showGQLandREST,
                 filterOutConnectivityPing: filterOutConnectivityPing,
                 cloudinaryImagesOnly: cloudinaryImagesOnly
-            ) { gql, rest, gqlAndRest, filterOutConnectivityPing, cloudinaryImagesOnly in
-                self.showOnlyGQLRequests = gql
-                self.showOnlyRESTRequests = rest
-                self.showGQLandREST = gqlAndRest
-                self.filterOutConnectivityPing = filterOutConnectivityPing
-                self.cloudinaryImagesOnly = cloudinaryImagesOnly
+            ) { [weak self] gql, rest, gqlAndRest, filterOutConnectivityPing, cloudinaryImagesOnly in
+                self?.showOnlyGQLRequests = gql
+                self?.showOnlyRESTRequests = rest
+                self?.showGQLandREST = gqlAndRest
+                self?.filterOutConnectivityPing = filterOutConnectivityPing
+                self?.cloudinaryImagesOnly = cloudinaryImagesOnly
+                self?.syncFilterStateToShared()
+                self?.filteredRequests = self?.filterRequests(text: self?.searchController?.searchBar.text) ?? []
+                self?.collectionView.reloadData()
             }
         )
         
