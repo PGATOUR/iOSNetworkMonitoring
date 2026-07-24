@@ -101,6 +101,10 @@ extension NetworkLoggerUrlProtocol: URLSessionDataDelegate {
         completionHandler(.allow)
     }
     
+    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        currentRequest?.applyResponseSource(from: metrics)
+    }
+
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error = error {
             currentRequest?.errorClientDescription = error.localizedDescription

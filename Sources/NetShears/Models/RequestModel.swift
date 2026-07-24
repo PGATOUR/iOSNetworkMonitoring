@@ -25,6 +25,7 @@ public final class NetShearsRequestModel: Codable {
     public var errorClientDescription: String?
     public var duration: Double?
     public var isFinished: Bool
+    public var responseSource: NetShearsResponseSource?
     
     init(request: NSURLRequest, session: URLSession?) {
         id = UUID().uuidString
@@ -224,9 +225,8 @@ public final class NetShearsRequestModel: Codable {
     /// A short heading that identifies this request: GQL operation name, REST path, or fallback.
     /// Matches the identifiers shown in the original request list (query name, operation type, URL path).
     var displayHeading: String {
-        if let name = headers["X-APOLLO-OPERATION-NAME"], !name.isEmpty {
-            let type = headers["X-APOLLO-OPERATION-TYPE"] ?? ""
-            if !type.isEmpty {
+        if let name = graphqlOperationName, !name.isEmpty {
+            if let type = graphqlOperationType, !type.isEmpty {
                 return "\(type.capitalized): \(name)"
             }
             return name
@@ -239,10 +239,83 @@ public final class NetShearsRequestModel: Codable {
 
     /// Key for grouping: GQL by operation name + body (variables/query); others by method + URL.
     var groupingKey: String {
-        if let opName = headers["X-APOLLO-OPERATION-NAME"], !opName.isEmpty {
-            let bodyStr = httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        if let opName = graphqlOperationName, !opName.isEmpty {
+            let bodyStr = httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? url
             return "gql|\(method)|\(url)|\(opName)|\(bodyStr)"
         }
         return "rest|\(method)|\(url)"
+    }
+
+    /// Apollo operation name from legacy headers or GraphQL request payload.
+    var graphqlOperationName: String? {
+        if let headerName = headerValue(for: "X-APOLLO-OPERATION-NAME"), !headerName.isEmpty {
+            return headerName
+        }
+        return graphQLPayload?.operationName
+    }
+
+    /// Apollo operation type from legacy headers or inferred from the GraphQL document.
+    var graphqlOperationType: String? {
+        if let headerType = headerValue(for: "X-APOLLO-OPERATION-TYPE"), !headerType.isEmpty {
+            return headerType
+        }
+        return graphQLPayload?.operationType
+    }
+
+    private func headerValue(for name: String) -> String? {
+        headers.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
+    }
+
+    private var graphQLPayload: GraphQLPayload? {
+        if let body = httpBody, let payload = GraphQLPayload.parseJSONBody(body) {
+            return payload
+        }
+        return GraphQLPayload.parseURLQuery(url)
+    }
+}
+
+private struct GraphQLPayload {
+    let operationName: String?
+    let operationType: String?
+
+    static func parseJSONBody(_ data: Data) -> GraphQLPayload? {
+        guard
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            json["operationName"] != nil || json["query"] != nil || json["extensions"] != nil
+        else {
+            return nil
+        }
+
+        let operationName = json["operationName"] as? String
+        let query = json["query"] as? String
+        return GraphQLPayload(
+            operationName: operationName,
+            operationType: query.flatMap(inferOperationType(from:))
+        )
+    }
+
+    static func parseURLQuery(_ urlString: String) -> GraphQLPayload? {
+        guard
+            let components = URLComponents(string: urlString),
+            let queryItems = components.queryItems,
+            queryItems.contains(where: { $0.name == "operationName" })
+        else {
+            return nil
+        }
+
+        let operationName = queryItems.first { $0.name == "operationName" }?.value
+        let query = queryItems.first { $0.name == "query" }?.value
+        return GraphQLPayload(
+            operationName: operationName,
+            operationType: query.flatMap(inferOperationType(from:))
+        )
+    }
+
+    private static func inferOperationType(from query: String) -> String? {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if trimmed.hasPrefix("mutation") { return "mutation" }
+        if trimmed.hasPrefix("subscription") { return "subscription" }
+        if trimmed.hasPrefix("query") || trimmed.hasPrefix("{") { return "query" }
+        return nil
     }
 }

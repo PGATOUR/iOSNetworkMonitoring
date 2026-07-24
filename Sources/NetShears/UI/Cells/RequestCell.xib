@@ -61,7 +61,7 @@
                                             <constraint firstAttribute="width" constant="80" id="Sd8-Uy-wXT"/>
                                         </constraints>
                                     </stackView>
-                                    <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" distribution="fillEqually" alignment="top" spacing="4" translatesAutoresizingMaskIntoConstraints="NO" id="BjF-Aj-2Xf">
+                                    <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" distribution="fill" alignment="top" spacing="4" translatesAutoresizingMaskIntoConstraints="NO" id="BjF-Aj-2Xf">
                                         <rect key="frame" x="84" y="0.0" width="332" height="130"/>
                                         <subviews>
                                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="H21-hA-S6C" userLabel="Operation Label">

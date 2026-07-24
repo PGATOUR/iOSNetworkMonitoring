@@ -10,7 +10,7 @@ import SwiftUI
 
 final class RequestSummaryViewController: UIViewController {
 
-    private var groupedRequests: [GroupedRequest] = []
+    private var allGroupedRequests: [GroupedRequest] = []
 
     private var showOnlyGQLRequests: Bool = false
     private var showOnlyRESTRequests: Bool = false
@@ -18,12 +18,16 @@ final class RequestSummaryViewController: UIViewController {
     private var filterOutConnectivityPing: Bool = true
     private var cloudinaryImagesOnly: Bool = false
 
+    private var searchController: UISearchController?
+
     private lazy var tableView: UITableView = {
         let table = UITableView(frame: .zero, style: .plain)
         table.translatesAutoresizingMaskIntoConstraints = false
         table.delegate = self
         table.dataSource = self
         table.backgroundColor = UIColor(red: 0.949, green: 0.949, blue: 0.969, alpha: 1)
+        table.rowHeight = UITableView.automaticDimension
+        table.estimatedRowHeight = 88
         table.register(UITableViewCell.self, forCellReuseIdentifier: RequestSummaryViewController.cellId)
         return table
     }()
@@ -51,7 +55,7 @@ final class RequestSummaryViewController: UIViewController {
         self.cloudinaryImagesOnly = cloudinaryImagesOnly
         super.init(nibName: nil, bundle: nil)
         if let requests = requests {
-            groupedRequests = GroupedRequest.grouped(from: requests)
+            allGroupedRequests = GroupedRequest.grouped(from: requests)
         }
     }
 
@@ -71,7 +75,8 @@ final class RequestSummaryViewController: UIViewController {
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         addNavigationItems()
-        if groupedRequests.isEmpty {
+        addSearchController()
+        if allGroupedRequests.isEmpty {
             reloadGroupedRequests()
         }
         NotificationCenter.default.addObserver(
@@ -94,6 +99,50 @@ final class RequestSummaryViewController: UIViewController {
             target: self,
             action: #selector(openFilterActionSheet(_:))
         )
+    }
+
+    private func addSearchController() {
+        searchController = UISearchController(searchResultsController: nil)
+        searchController?.searchResultsUpdater = self
+        searchController?.obscuresBackgroundDuringPresentation = false
+        searchController?.searchBar.placeholder = "Search"
+        navigationItem.searchController = searchController
+        definesPresentationContext = true
+    }
+
+    private var displayedGroupedRequests: [GroupedRequest] {
+        filterGroupedRequests(text: searchController?.searchBar.text)
+    }
+
+    private func filterGroupedRequests(text: String?) -> [GroupedRequest] {
+        guard
+            let searchText = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !searchText.isEmpty
+        else {
+            return allGroupedRequests
+        }
+
+        return allGroupedRequests.filter { matchesSearch($0, searchText: searchText) }
+    }
+
+    private func matchesSearch(_ grouped: GroupedRequest, searchText: String) -> Bool {
+        let options: String.CompareOptions = .caseInsensitive
+
+        if grouped.url.range(of: searchText, options: options) != nil { return true }
+        if grouped.method.range(of: searchText, options: options) != nil { return true }
+        if grouped.latestRequest.displayHeading.range(of: searchText, options: options) != nil { return true }
+
+        if let operationName = grouped.latestRequest.graphqlOperationName,
+           operationName.range(of: searchText, options: options) != nil {
+            return true
+        }
+
+        if let operationType = grouped.latestRequest.graphqlOperationType,
+           operationType.range(of: searchText, options: options) != nil {
+            return true
+        }
+
+        return false
     }
 
     private func applyFilters() -> [NetShearsRequestModel] {
@@ -129,7 +178,7 @@ final class RequestSummaryViewController: UIViewController {
     }
 
     private func reloadGroupedRequests() {
-        groupedRequests = GroupedRequest.grouped(from: applyFilters())
+        allGroupedRequests = GroupedRequest.grouped(from: applyFilters())
         tableView.reloadData()
     }
 
@@ -174,26 +223,27 @@ final class RequestSummaryViewController: UIViewController {
 
 extension RequestSummaryViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        groupedRequests.count
+        displayedGroupedRequests.count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: RequestSummaryViewController.cellId, for: indexPath)
-        let grouped = groupedRequests[indexPath.row]
+        let grouped = displayedGroupedRequests[indexPath.row]
         let heading = grouped.latestRequest.displayHeading
-        let countText = "\(grouped.method.uppercased()) • \(grouped.count) request\(grouped.count == 1 ? "" : "s")"
+        let countText = "\(grouped.method.uppercased()) • \(grouped.fulfillmentCountText)"
         if #available(iOS 14.0, *) {
             var config = cell.defaultContentConfiguration()
             config.text = heading
             config.textProperties.font = .systemFont(ofSize: 17, weight: .semibold)
+            config.textProperties.numberOfLines = 0
             config.secondaryText = "\(countText)\n\(grouped.url)"
-            config.secondaryTextProperties.numberOfLines = 2
+            config.secondaryTextProperties.numberOfLines = 0
             config.secondaryTextProperties.color = .secondaryLabel
             cell.contentConfiguration = config
         } else {
-            cell.textLabel?.text = "\(heading)\n\(countText) • \(grouped.url)"
+            cell.textLabel?.text = "\(heading)\n\(countText)\n\(grouped.url)"
             cell.textLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
-            cell.textLabel?.numberOfLines = 3
+            cell.textLabel?.numberOfLines = 0
         }
         cell.accessoryType = .disclosureIndicator
         cell.backgroundColor = .systemBackground
@@ -204,10 +254,12 @@ extension RequestSummaryViewController: UITableViewDataSource {
 extension RequestSummaryViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        openRequestDetail(groupedRequests[indexPath.row])
+        openRequestDetail(displayedGroupedRequests[indexPath.row])
     }
+}
 
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        88
+extension RequestSummaryViewController: UISearchResultsUpdating {
+    func updateSearchResults(for searchController: UISearchController) {
+        tableView.reloadData()
     }
 }

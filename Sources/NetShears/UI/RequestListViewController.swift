@@ -272,8 +272,9 @@ extension RequestsViewController: UICollectionViewDelegate, UICollectionViewDele
     func collectionView(_ collectionView: UICollectionView,
                         layout collectionViewLayout: UICollectionViewLayout,
                         sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: collectionView.bounds.size.width, height: 76)
-        
+        let width = collectionView.bounds.size.width
+        let height = RequestCell.preferredHeight(for: filteredRequests[indexPath.item], width: width)
+        return CGSize(width: width, height: height)
     }
 }
 

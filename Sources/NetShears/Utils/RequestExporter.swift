@@ -19,9 +19,10 @@ final class RequestExporter: NSObject {
         let method = NSMutableAttributedString().bold("Method ").normal(request.method + "\n")
         let responseCode = NSMutableAttributedString().bold("Response Code ").normal((request.code != 0 ? "\(request.code)" : "-") + "\n")
         let requestStartTime = NSMutableAttributedString().bold("Request Start Time ").normal((request.date.stringWithFormat(dateFormat: "MMM d yyyy - HH:mm:ss") ?? "-") + "\n")
-        let duration = NSMutableAttributedString().bold("Duration ").normal(request.duration?.formattedMilliseconds() ?? "-" + "\n")
+        let duration = NSMutableAttributedString().bold("Duration ").normal((request.duration?.formattedMilliseconds() ?? "-") + "\n")
+        let responseSource = NSMutableAttributedString().bold("Response Source ").normal((request.responseSource?.displayLabel ?? "-") + "\n")
         let final = NSMutableAttributedString()
-        for attr in [url, method, responseCode, requestStartTime, duration]{
+        for attr in [url, method, responseCode, requestStartTime, duration, responseSource]{
             final.append(attr)
         }
         return final
