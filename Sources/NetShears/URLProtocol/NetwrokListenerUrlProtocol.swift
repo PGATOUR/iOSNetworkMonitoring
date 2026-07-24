@@ -32,7 +32,8 @@ class NetwrokListenerUrlProtocol: URLProtocol {
     
     override class func canInit(with request: URLRequest) -> Bool {
         
-        if NetwrokListenerUrlProtocol.property(forKey: Constants.RequestHandledKey, in: request) != nil {
+        if NetwrokListenerUrlProtocol.property(forKey: Constants.RequestHandledKey, in: request) != nil ||
+            request.value(forHTTPHeaderField: "Connection") == "Upgrade" {
             return false
         }
         return true
